@@ -9,7 +9,7 @@ st.set_page_config(layout="wide", page_title="Business Report Dashboard")
 st.title("📊 Google Sheets Data Processor & Reporter")
 
 # --- CONNECTION ---
-SHEET_ID = "19DdEF2bPLOY1cJ2wHJtuG9JkPrLlRbb2I37CvnOCqYg"
+SHEET_ID = "d/1I-YGm6Lv4BGDOVUzfoNJQcRx2ro_FmxPuYByMgJ0AyI"
 SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
 # --- SECOND SHEET (COMPARISON) ---
@@ -239,3 +239,4 @@ try:
 except Exception as e:
     st.error(f"Error: {e}")
     st.info("Check if your Arrival Date column uses the format DD/MM/YYYY.")
+
