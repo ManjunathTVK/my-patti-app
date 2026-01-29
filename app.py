@@ -109,7 +109,7 @@ try:
     filtered_df = raw_data[raw_data['Supplier Name'].isin(selected_suppliers)]
 
     # --- TABS FOR ANALYSIS ---
-    tab_main, tab_comp = st.tabs(["📊 Main Report", "📈 Sales Comparison"])
+    tab_main, tab_comp = st.tabs(["📊 Main Report", "📈 Sales Comparison Patti V/s Bills"])
 
     with tab_main:
         # --- TOP KPI METRICS ---
@@ -137,7 +137,7 @@ try:
 
         with c2:
             fig = px.bar(monthly_summary, x='Month', y='Sale Amt', 
-                          title="Revenue Trend (Based on Arrival Date)")
+                          title="Arrival Trend (Based on Arrival Date)")
             st.plotly_chart(fig, use_container_width=True)
 
         st.markdown("---")
@@ -153,18 +153,18 @@ try:
 
     with tab_comp:
         st.subheader("🔄 Monthly Total Sales Comparison")
-        st.info("Comparing Total Sales (All Suppliers) from Sheet 1 vs Sheet 2")
+        st.info("Comparing Total Sales (All Suppliers) as per Patti to Sales as per Bills")
         
         # Load Sheet 2 Data
         raw_data_2 = load_comparison_data(SHEET_URL_2)
         
         # 1. Aggregate SHEET 1 (Total, Unfiltered)
         s1_monthly = raw_data.groupby(['Month_Sort', 'Month'])['Sale Amt'].sum().reset_index()
-        s1_monthly.rename(columns={'Sale Amt': 'Main Sheet Sales'}, inplace=True)
+        s1_monthly.rename(columns={'Sale Amt': 'Patti Sales'}, inplace=True)
         
         # 2. Aggregate SHEET 2 (Using 'Sale Amount')
         s2_monthly = raw_data_2.groupby(['Month_Sort', 'Month'])['Sale Amount'].sum().reset_index()
-        s2_monthly.rename(columns={'Sale Amount': 'Comparison Sheet Sales'}, inplace=True)
+        s2_monthly.rename(columns={'Sale Amount': 'Bill Sales'}, inplace=True)
         
         # 3. Merge
         comparison_df = pd.merge(s1_monthly, s2_monthly, on=['Month_Sort', 'Month'], how='outer').fillna(0)
@@ -239,4 +239,5 @@ try:
 except Exception as e:
     st.error(f"Error: {e}")
     st.info("Check if your Arrival Date column uses the format DD/MM/YYYY.")
+
 
