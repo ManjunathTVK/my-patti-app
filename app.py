@@ -6,7 +6,7 @@ import plotly.express as px
 # --- PAGE SETUP ---
 st.set_page_config(layout="wide", page_title="Business Report Dashboard")
 
-st.title("📊 Google Sheets Data Processor & Reporter")
+st.title("📊 Jothi Traders : Patti Report")
 
 # --- CONNECTION ---
 SHEET_ID = "1I-YGm6Lv4BGDOVUzfoNJQcRx2ro_FmxPuYByMgJ0AyI"
@@ -114,31 +114,38 @@ try:
     with tab_main:
         # --- TOP KPI METRICS ---
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Total Sales", f"₹{filtered_df['Sale Amt'].sum():,.2f}")
-        m2.metric("Total Patty Value", f"₹{filtered_df['Patty Amt'].sum():,.2f}")
-        m3.metric("Total Payments", f"₹{filtered_df['Payment amt'].sum():,.2f}")
+        m1.metric("Total Sales", f"₹{filtered_df['Sale Amt'].sum():,.0f}")
+        m2.metric("Total Patty Value", f"₹{filtered_df['Patty Amt'].sum():,.0f}")
+        m3.metric("Total Payments", f"₹{filtered_df['Payment amt'].sum():,.0f}")
         balance = filtered_df['Patty Amt'].sum() - filtered_df['Payment amt'].sum()
-        m4.metric("Pending Balance", f"₹{balance:,.2f}", delta_color="inverse")
+        m4.metric("Pending Balance", f"₹{balance:,.0f}", delta_color="inverse")
 
         st.markdown("---")
 
         # --- MONTHLY SALES REPORT ---
-        st.subheader("📅 Monthly Sales Performance")
+        st.subheader("📅 Monthly Arrival")
         
         monthly_summary = filtered_df.groupby(['Month_Sort', 'Month'])['Sale Amt'].sum().reset_index()
         monthly_summary = monthly_summary.sort_values('Month_Sort')
 
+        # Calculate Total for Table Display
+        total_sales = monthly_summary['Sale Amt'].sum()
+        total_row = pd.DataFrame([{'Month': 'TOTAL', 'Sale Amt': total_sales}])
+        monthly_display = pd.concat([monthly_summary, total_row], ignore_index=True)
+
         c1, c2 = st.columns([1, 2])
         with c1:
             st.dataframe(
-                monthly_summary[['Month', 'Sale Amt']].style.format({'Sale Amt': '₹{:,.2f}'}),
+                monthly_display[['Month', 'Sale Amt']].style.format({'Sale Amt': '₹{:,.0f}'})
+                .apply(lambda x: ['font-weight: bold' if x.name == len(monthly_display)-1 else '' for i in x], axis=1),
                 hide_index=True, use_container_width=True
             )
 
         with c2:
             fig = px.bar(monthly_summary, x='Month', y='Sale Amt', 
-                          title="Revenue Trend (Based on Arrival Date)")
-            st.plotly_chart(fig, use_container_width=True)
+                          title="Arrival Trend (Based on Arrival Date)")
+            fig.update_layout(xaxis=dict(fixedrange=True), yaxis=dict(fixedrange=True))
+            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
         st.markdown("---")
 
@@ -153,33 +160,33 @@ try:
 
     with tab_comp:
         st.subheader("🔄 Monthly Total Sales Comparison")
-        st.info("Comparing Total Sales (All Suppliers) from Sheet 1 vs Sheet 2")
+        st.info("Comparing Total Sales as per Patti and Sales as per Bills")
         
         # Load Sheet 2 Data
         raw_data_2 = load_comparison_data(SHEET_URL_2)
         
         # 1. Aggregate SHEET 1 (Total, Unfiltered)
         s1_monthly = raw_data.groupby(['Month_Sort', 'Month'])['Sale Amt'].sum().reset_index()
-        s1_monthly.rename(columns={'Sale Amt': 'Main Sheet Sales'}, inplace=True)
+        s1_monthly.rename(columns={'Sale Amt': 'As per Patti'}, inplace=True)
         
         # 2. Aggregate SHEET 2 (Using 'Sale Amount')
         s2_monthly = raw_data_2.groupby(['Month_Sort', 'Month'])['Sale Amount'].sum().reset_index()
-        s2_monthly.rename(columns={'Sale Amount': 'Comparison Sheet Sales'}, inplace=True)
+        s2_monthly.rename(columns={'Sale Amount': 'As per Bills'}, inplace=True)
         
         # 3. Merge
         comparison_df = pd.merge(s1_monthly, s2_monthly, on=['Month_Sort', 'Month'], how='outer').fillna(0)
         comparison_df = comparison_df.sort_values('Month_Sort')
         
         # --- ADD TOTAL ROW ---
-        total_s1 = comparison_df['Main Sheet Sales'].sum()
-        total_s2 = comparison_df['Comparison Sheet Sales'].sum()
+        total_s1 = comparison_df['As per Patti'].sum()
+        total_s2 = comparison_df['As per Bills'].sum()
         
         # Create a DataFrame for the Total row
         total_row = pd.DataFrame([{
             'Month': 'TOTAL', 
             'Month_Sort': '',  # Empty or distinct to avoid sorting issues 
-            'Main Sheet Sales': total_s1, 
-            'Comparison Sheet Sales': total_s2
+            'As per Patti': total_s1, 
+            'As per Bills': total_s2
         }])
         
         # Concatenate: Original Data + Total Row
@@ -190,8 +197,8 @@ try:
         
         with col_A:
             st.dataframe(
-                comparison_table[['Month', 'Main Sheet Sales', 'Comparison Sheet Sales']].style.format(
-                    {'Main Sheet Sales': '₹{:,.2f}', 'Comparison Sheet Sales': '₹{:,.2f}'}
+                comparison_table[['Month', 'As per Patti', 'As per Bills']].style.format(
+                    {'As per Patti': '₹{:,.0f}', 'As per Bills': '₹{:,.0f}'}
                 ).apply(lambda x: ['font-weight: bold' if x.name == len(comparison_table)-1 else '' for i in x], axis=1),
                 hide_index=True, use_container_width=True
             )
@@ -200,11 +207,12 @@ try:
             # Reshape for Plotly
             comp_plot = comparison_df.melt(
                 id_vars=['Month', 'Month_Sort'], 
-                value_vars=['Main Sheet Sales', 'Comparison Sheet Sales'],
+                value_vars=['As per Patti', 'As per Bills'],
                 var_name='Source', value_name='Sales'
             )
             fig_comp = px.line(comp_plot, x='Month', y='Sales', color='Source', markers=True, title="Sales Comparison Trend")
-            st.plotly_chart(fig_comp, use_container_width=True)
+            fig_comp.update_layout(xaxis=dict(fixedrange=True), yaxis=dict(fixedrange=True))
+            st.plotly_chart(fig_comp, use_container_width=True, config={'displayModeBar': False})
 
         st.markdown("---")
 
@@ -212,32 +220,28 @@ try:
         st.subheader("📈 Cumulative Sales Growth")
         
         # Calculate Cumulative Sum
-        comparison_df['Cumulative (Sheet 1)'] = comparison_df['Main Sheet Sales'].cumsum()
-        comparison_df['Cumulative (Sheet 2)'] = comparison_df['Comparison Sheet Sales'].cumsum()
+        comparison_df['Cumulative (As per Patti)'] = comparison_df['As per Patti'].cumsum()
+        comparison_df['Cumulative (As per Bills)'] = comparison_df['As per Bills'].cumsum()
+        comparison_df['Difference'] = comparison_df['Cumulative (As per Patti)'] - comparison_df['Cumulative (As per Bills)']
         
-        col_C, col_D = st.columns([1, 2])
-        
-        with col_C:
-             st.caption("Cumulative Progress Table")
-             st.dataframe(
-                comparison_df[['Month', 'Cumulative (Sheet 1)', 'Cumulative (Sheet 2)']].style.format(
-                    {'Cumulative (Sheet 1)': '₹{:,.2f}', 'Cumulative (Sheet 2)': '₹{:,.2f}'}
-                ),
-                hide_index=True, use_container_width=True
-            )
+        st.caption("Cumulative Progress Table")
+        st.dataframe(
+            comparison_df[['Month', 'Cumulative (As per Patti)', 'Cumulative (As per Bills)', 'Difference']].style.format(
+                {'Cumulative (As per Patti)': '₹{:,.0f}', 'Cumulative (As per Bills)': '₹{:,.0f}', 'Difference': '₹{:,.0f}'}
+            ).apply(lambda x: ['color: red' if v < 0 else '' for v in x], subset=['Difference']),
+            hide_index=True, use_container_width=True
+        )
 
-        with col_D:
-            # Reshape for Plotly
-            cum_plot = comparison_df.melt(
-                id_vars=['Month', 'Month_Sort'], 
-                value_vars=['Cumulative (Sheet 1)', 'Cumulative (Sheet 2)'],
-                var_name='Source', value_name='Cumulative Sales'
-            )
-            fig_cum = px.line(cum_plot, x='Month', y='Cumulative Sales', color='Source', markers=True, title="Cumulative Growth Trail")
-            st.plotly_chart(fig_cum, use_container_width=True)
+        # Reshape for Plotly
+        cum_plot = comparison_df.melt(
+            id_vars=['Month', 'Month_Sort'], 
+            value_vars=['Cumulative (As per Patti)', 'Cumulative (As per Bills)'],
+            var_name='Source', value_name='Cumulative Sales'
+        )
+        fig_cum = px.line(cum_plot, x='Month', y='Cumulative Sales', color='Source', markers=True, title="Cumulative Growth Trail")
+        fig_cum.update_layout(xaxis=dict(fixedrange=True), yaxis=dict(fixedrange=True))
+        st.plotly_chart(fig_cum, use_container_width=True, config={'displayModeBar': False})
 
 except Exception as e:
     st.error(f"Error: {e}")
     st.info("Check if your Arrival Date column uses the format DD/MM/YYYY.")
-
-
