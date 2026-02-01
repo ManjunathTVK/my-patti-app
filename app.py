@@ -534,5 +534,11 @@ try:
             st.info("Not enough data to calculate missing sequences.")
 
 except Exception as e:
-    st.error(f"Error: {e}")
-    st.info("Check if your Arrival Date column uses the format DD/MM/YYYY.")
+    st.error(f"### An Error Occurred")
+    st.error(f"{e}")
+    
+    st.markdown("---")
+    with st.expander("ℹ️ Troubleshooting Tips (Click to Expand)", expanded=True):
+        st.write("1. **Dependencies**: If running on Streamlit Cloud, ensure `requirements.txt` includes all libraries (e.g. `matplotlib`).")
+        st.write("2. **Date Format**: Check if your 'Arrival Date' column in Google Sheets uses the format `DD/MM/YYYY`.")
+        st.write("3. **Column Names**: Ensure your Google Sheet headers haven't changed drastically.")
