@@ -244,46 +244,41 @@ def load_and_clean_data(url):
 
 @st.cache_data
 
+@st.cache_data
 def load_comparison_data(url):
-
     df = pd.read_csv(url)
-
     df.columns = df.columns.str.strip()
-
     
-
     # 1. Clean Date Column
-
     if 'Date' in df.columns:
-
-        df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y', errors='coerce')
-
+        # Convert to string to handle mixed types in the sheet
+        df['Date'] = df['Date'].astype(str).str.strip()
+        
+        # Standardize separators (converts 01-01-2024 or 01.01.2024 to 01/01/2024)
+        df['Date'] = df['Date'].str.replace('-', '/').str.replace('.', '/')
+        
+        # Handle common empty/null string values
+        df['Date'] = df['Date'].replace(['nan', 'None', '', ' '], np.nan)
+        
+        # Flexible parsing: dayfirst=True ensures DD/MM/YYYY is prioritized 
+        # errors='coerce' turns unparseable text into NaT (Not a Time)
+        df['Date'] = pd.to_datetime(df['Date'], dayfirst=True, errors='coerce')
+        
+        # Remove rows where the date couldn't be recovered
         df = df.dropna(subset=['Date'])
-
         
-
         # Generate Sorting Columns
-
-        df['Month'] = df['Date'].dt.strftime('%b-%Y') 
-
-        df['Month_Sort'] = df['Date'].dt.to_period('M')
-
+        if not df.empty:
+            df['Month'] = df['Date'].dt.strftime('%b-%Y') 
+            df['Month_Sort'] = df['Date'].dt.to_period('M')
         
-
     # 2. Clean Sale Amount
-
     col_name = 'Sale Amount'
-
     if col_name in df.columns:
-
         df[col_name] = df[col_name].astype(str).str.replace(r'[^\d.]', '', regex=True)
-
         df[col_name] = pd.to_numeric(df[col_name], errors='coerce').fillna(0)
-
         
-
     return df
-
 
 
 try:
@@ -1085,4 +1080,5 @@ except Exception as e:
         st.write("2. **Date Format**: Check if your 'Arrival Date' column in Google Sheets uses the format `DD/MM/YYYY`.")
 
         st.write("3. **Column Names**: Ensure your Google Sheet headers haven't changed drastically.")
+
 
