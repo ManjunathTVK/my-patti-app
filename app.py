@@ -88,24 +88,43 @@ def load_and_clean_data(url):
 
 @st.cache_data(ttl=600)
 def load_comparison_data(url):
+    # 1. Load raw CSV
     df = pd.read_csv(url)
+    
+    # --- ROW TRACKING ---
     df['Sheet_Row_Number'] = df.index + 2
     last_row_fetched = int(df['Sheet_Row_Number'].max()) if not df.empty else 0
+    
     df.columns = df.columns.str.strip()
     
+    # 2. FLEXIBLE DATE CLEANING (Fixes the Feb 5th - 28th issue)
     latest_date = None
     if 'Date' in df.columns:
-        df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y', errors='coerce')
+        # Convert to string and clean separators first
+        df['Date'] = df['Date'].astype(str).str.strip()
+        df['Date'] = df['Date'].str.replace('-', '/').str.replace('.', '/')
+        df['Date'] = df['Date'].replace(['nan', 'None', '', ' '], np.nan)
+        
+        # dayfirst=True allows it to handle 04/02 (Feb 4) and 02/13 (Feb 13) in the same column
+        df['Date'] = pd.to_datetime(df['Date'], dayfirst=True, errors='coerce')
+        
+        # Track latest date for the Health Check sidebar
         latest_date = df['Date'].max()
+        
+        # Drop only the rows where the date is truly unreadable
         df = df.dropna(subset=['Date'])
+        
+        # Generate Sorting Columns
         df['Month'] = df['Date'].dt.strftime('%b-%Y') 
         df['Month_Sort'] = df['Date'].dt.to_period('M')
         
+    # 3. Clean Sale Amount
     total_amt = 0
-    if 'Sale Amount' in df.columns:
-        df['Sale Amount'] = df['Sale Amount'].astype(str).str.replace(r'[^\d.]', '', regex=True)
-        df['Sale Amount'] = pd.to_numeric(df['Sale Amount'], errors='coerce').fillna(0)
-        total_amt = df['Sale Amount'].sum()
+    col_name = 'Sale Amount'
+    if col_name in df.columns:
+        df[col_name] = df[col_name].astype(str).str.replace(r'[^\d.]', '', regex=True)
+        df[col_name] = pd.to_numeric(df[col_name], errors='coerce').fillna(0)
+        total_amt = df[col_name].sum()
         
     return df, last_row_fetched, latest_date, total_amt
 
@@ -199,3 +218,4 @@ try:
 
 except Exception as e:
     st.error(f"Error: {e}")
+
